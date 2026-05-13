@@ -1,0 +1,29 @@
+# Easy: Validation and test regimes are similar.
+# The regime transition matrix keeps regimes sticky, and the starting
+# regime is the same.  Momentum signals dominate throughout.
+
+seed: 100
+n_years: 5
+
+regime_start: 0  # start in momentum
+
+regime_transition:
+  - [0.97, 0.01, 0.01, 0.01]
+  - [0.01, 0.97, 0.01, 0.01]
+  - [0.01, 0.01, 0.97, 0.01]
+  - [0.01, 0.01, 0.01, 0.97]
+
+# Strong momentum everywhere
+momentum_signal:
+  momentum: 0.0004
+  low_vol: 0.0002
+  mean_reversion: 0.0001
+  noisy: 0.0001
+
+reversion_signal:
+  momentum: 0.0
+  low_vol: 0.0
+  mean_reversion: 0.0001
+  noisy: 0.0
+
+transaction_cost_bps: 20

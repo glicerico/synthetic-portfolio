@@ -1,0 +1,42 @@
+# Noise Trap: No robust improvement over equal-weight is possible.
+# All signals are weak / noise-dominated.  Any strategy that tries to
+# exploit patterns will likely underperform due to transaction costs.
+
+seed: 999
+n_years: 5
+
+regime_start: 3  # start in noisy regime
+
+regime_transition:
+  - [0.90, 0.03, 0.03, 0.04]
+  - [0.03, 0.90, 0.03, 0.04]
+  - [0.03, 0.03, 0.90, 0.04]
+  - [0.04, 0.04, 0.04, 0.88]
+
+# All signals near zero
+momentum_signal:
+  momentum: 0.00005
+  low_vol: 0.00002
+  mean_reversion: 0.00002
+  noisy: 0.0
+
+reversion_signal:
+  momentum: 0.00002
+  low_vol: 0.00002
+  mean_reversion: 0.00005
+  noisy: 0.0
+
+lowvol_premium:
+  momentum: 0.00002
+  low_vol: 0.00005
+  mean_reversion: 0.00002
+  noisy: 0.0
+
+# High idiosyncratic noise
+idio_vol:
+  momentum: 0.015
+  low_vol: 0.012
+  mean_reversion: 0.015
+  noisy: 0.025
+
+transaction_cost_bps: 30

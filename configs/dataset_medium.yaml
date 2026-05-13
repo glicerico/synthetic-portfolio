@@ -1,0 +1,34 @@
+# Medium: Mild regime shift between validation and test.
+# Validation period is predominantly momentum, test shifts toward
+# low-volatility and mean-reversion.
+
+seed: 42
+n_years: 5
+
+regime_start: 0  # start in momentum
+
+regime_transition:
+  - [0.96, 0.02, 0.01, 0.01]
+  - [0.02, 0.95, 0.02, 0.01]
+  - [0.01, 0.02, 0.95, 0.02]
+  - [0.02, 0.01, 0.02, 0.95]
+
+momentum_signal:
+  momentum: 0.0003
+  low_vol: 0.00005
+  mean_reversion: -0.0002
+  noisy: 0.0
+
+reversion_signal:
+  momentum: -0.00005
+  low_vol: 0.00005
+  mean_reversion: 0.0003
+  noisy: 0.0
+
+lowvol_premium:
+  momentum: 0.00005
+  low_vol: 0.0003
+  mean_reversion: 0.00005
+  noisy: 0.0
+
+transaction_cost_bps: 30

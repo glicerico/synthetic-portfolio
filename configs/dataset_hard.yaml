@@ -1,0 +1,35 @@
+# Hard: Validation favours momentum, test favours mean-reversion.
+# A strategy that overfits to momentum in validation will underperform
+# in the test period.
+
+seed: 77
+n_years: 5
+
+# Start in momentum → transition heavily to mean-reversion later
+regime_start: 0
+
+regime_transition:
+  - [0.92, 0.02, 0.05, 0.01]
+  - [0.02, 0.90, 0.05, 0.03]
+  - [0.01, 0.02, 0.95, 0.02]
+  - [0.03, 0.02, 0.05, 0.90]
+
+momentum_signal:
+  momentum: 0.0005
+  low_vol: 0.00005
+  mean_reversion: -0.0004
+  noisy: 0.0
+
+reversion_signal:
+  momentum: -0.0001
+  low_vol: 0.0001
+  mean_reversion: 0.0005
+  noisy: 0.0
+
+lowvol_premium:
+  momentum: 0.0
+  low_vol: 0.0002
+  mean_reversion: 0.0001
+  noisy: 0.0
+
+transaction_cost_bps: 30
