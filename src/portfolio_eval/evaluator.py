@@ -328,15 +328,28 @@ def evaluate(
         print("=" * 60)
 
         # Leaderboard
+        import datetime
+        import shutil
+
         baselines_path = Path(hidden_dir) / "baselines.json"
         if baselines_path.exists():
             with open(baselines_path) as f:
                 baselines = json.load(f)
                 
+            # Create a timestamped strategy name
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            original_stem = Path(strategy_path).stem
+            strategy_name = f"{original_stem}_{ts}"
+
+            # Copy strategy to hidden_dir/submissions
+            submissions_dir = Path(hidden_dir) / "submissions"
+            submissions_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy(strategy_path, submissions_dir / f"{strategy_name}.py")
+
             # Append current strategy to baselines.json
-            strategy_name = Path(strategy_path).stem
             clean_results = results.copy()
             clean_results["constraint_violations"] = [] # Don't bloat the JSON
+            clean_results["submission_time"] = ts
             baselines[strategy_name] = clean_results
             
             # Save it back so the leaderboard is persistent for this dataset
@@ -346,7 +359,7 @@ def evaluate(
             print("\n" + "=" * 65)
             print("LEADERBOARD COMPARISON")
             print("=" * 65)
-            print(f"{'Strategy Name':<35} | {'Sharpe':>8} | {'Total Ret':>9} | {'Max DD':>8}")
+            print(f"{'Strategy Name':<40} | {'Sharpe':>8} | {'Total Ret':>9} | {'Max DD':>8}")
             print("-" * 65)
             
             # Sort all strategies by Sharpe
@@ -359,9 +372,13 @@ def evaluate(
                 
                 display_name = name
                 if name == strategy_name:
-                    display_name = f">>> {name} <<<"
+                    display_name = f">>> {name}"
                     
-                print(f"{display_name:<35} | {sharpe:>8.4f} | {tot_ret:>9.4f} | {max_dd:>8.4f}")
+                # Truncate long names to 40 chars
+                if len(display_name) > 40:
+                    display_name = display_name[:37] + "..."
+
+                print(f"{display_name:<40} | {sharpe:>8.4f} | {tot_ret:>9.4f} | {max_dd:>8.4f}")
             print("=" * 65)
 
     return results
