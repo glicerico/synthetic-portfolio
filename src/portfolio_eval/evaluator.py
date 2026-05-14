@@ -327,6 +327,37 @@ def evaluate(
                 print(f"    ... and {len(all_violations) - 5} more")
         print("=" * 60)
 
+        # Leaderboard
+        baselines_path = Path(hidden_dir) / "baselines.json"
+        if baselines_path.exists():
+            with open(baselines_path) as f:
+                baselines = json.load(f)
+            
+            print("\n" + "=" * 65)
+            print("LEADERBOARD COMPARISON")
+            print("=" * 65)
+            print(f"{'Strategy Name':<35} | {'Sharpe':>8} | {'Total Ret':>9} | {'Max DD':>8}")
+            print("-" * 65)
+            
+            # Sort baselines by Sharpe
+            sorted_baselines = sorted(baselines.items(), key=lambda x: x[1].get('annualized_sharpe', -999), reverse=True)
+            
+            # Insert submitted strategy into the sorted list
+            submitted_item = ("SUBMITTED STRATEGY", results)
+            all_strats = sorted_baselines + [submitted_item]
+            all_strats.sort(key=lambda x: x[1].get('annualized_sharpe', -999), reverse=True)
+            
+            for name, metrics in all_strats:
+                sharpe = metrics.get('annualized_sharpe', 0.0)
+                tot_ret = metrics.get('total_return', 0.0)
+                max_dd = metrics.get('max_drawdown', 0.0)
+                
+                if name == "SUBMITTED STRATEGY":
+                    name = ">>> SUBMITTED STRATEGY <<<"
+                    
+                print(f"{name:<35} | {sharpe:>8.4f} | {tot_ret:>9.4f} | {max_dd:>8.4f}")
+            print("=" * 65)
+
     return results
 
 

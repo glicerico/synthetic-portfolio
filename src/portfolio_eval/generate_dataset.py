@@ -447,7 +447,24 @@ def save_split_dataset(dataset: Dict[str, Any], public_out: str, hidden_out: str
             json.dump(hid["dgp_config"], f, indent=2, default=str)
     np.save(hid_dir / "true_regimes.npy", regimes[val_end:])
 
-    print(f"Dataset generated and split successfully.")
+    # --- Pre-evaluate baselines ---
+    from portfolio_eval.evaluator import evaluate
+    baselines = {}
+    examples_dir = Path("examples")
+    if examples_dir.exists():
+        print(f"\nPre-evaluating baseline strategies in {examples_dir}...")
+        for script in examples_dir.glob("*_strategy.py"):
+            try:
+                res = evaluate(public_out, hidden_out, str(script), verbose=False)
+                baselines[script.stem] = res
+                print(f"  {script.stem:30s} : Sharpe = {res['annualized_sharpe']:.4f}")
+            except Exception as e:
+                print(f"  {script.stem:30s} : FAILED ({e})")
+                
+    with open(hid_dir / "baselines.json", "w") as f:
+        json.dump(baselines, f, indent=2, default=str)
+
+    print(f"\nDataset generated and split successfully.")
     print(f"Public data saved to: {pub_dir}")
     print(f"Hidden data saved to: {hid_dir}")
     print(f"  Train:      {dates[0].date()} – {dates[train_end-1].date()}  ({train_end} days)")
