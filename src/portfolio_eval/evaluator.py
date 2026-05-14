@@ -332,6 +332,16 @@ def evaluate(
         if baselines_path.exists():
             with open(baselines_path) as f:
                 baselines = json.load(f)
+                
+            # Append current strategy to baselines.json
+            strategy_name = Path(strategy_path).stem
+            clean_results = results.copy()
+            clean_results["constraint_violations"] = [] # Don't bloat the JSON
+            baselines[strategy_name] = clean_results
+            
+            # Save it back so the leaderboard is persistent for this dataset
+            with open(baselines_path, "w") as f:
+                json.dump(baselines, f, indent=2, default=str)
             
             print("\n" + "=" * 65)
             print("LEADERBOARD COMPARISON")
@@ -339,23 +349,19 @@ def evaluate(
             print(f"{'Strategy Name':<35} | {'Sharpe':>8} | {'Total Ret':>9} | {'Max DD':>8}")
             print("-" * 65)
             
-            # Sort baselines by Sharpe
+            # Sort all strategies by Sharpe
             sorted_baselines = sorted(baselines.items(), key=lambda x: x[1].get('annualized_sharpe', -999), reverse=True)
             
-            # Insert submitted strategy into the sorted list
-            submitted_item = ("SUBMITTED STRATEGY", results)
-            all_strats = sorted_baselines + [submitted_item]
-            all_strats.sort(key=lambda x: x[1].get('annualized_sharpe', -999), reverse=True)
-            
-            for name, metrics in all_strats:
+            for name, metrics in sorted_baselines:
                 sharpe = metrics.get('annualized_sharpe', 0.0)
                 tot_ret = metrics.get('total_return', 0.0)
                 max_dd = metrics.get('max_drawdown', 0.0)
                 
-                if name == "SUBMITTED STRATEGY":
-                    name = ">>> SUBMITTED STRATEGY <<<"
+                display_name = name
+                if name == strategy_name:
+                    display_name = f">>> {name} <<<"
                     
-                print(f"{name:<35} | {sharpe:>8.4f} | {tot_ret:>9.4f} | {max_dd:>8.4f}")
+                print(f"{display_name:<35} | {sharpe:>8.4f} | {tot_ret:>9.4f} | {max_dd:>8.4f}")
             print("=" * 65)
 
     return results
