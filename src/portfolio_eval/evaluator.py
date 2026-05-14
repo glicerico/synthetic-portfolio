@@ -251,13 +251,22 @@ def evaluate(
     else:
         wc_df = pd.DataFrame()
 
+    ew_daily_returns = test_ret.mean(axis=1)
+    active_daily_returns = daily_returns - ew_daily_returns
+
     # --- Metrics ---
     results = {
         "annualized_sharpe": M.sharpe_ratio(daily_returns),
+        "baseline_ew_sharpe": M.sharpe_ratio(ew_daily_returns),
+        "information_ratio_vs_ew": M.information_ratio(active_daily_returns),
         "total_return": M.total_return(daily_returns),
+        "baseline_ew_total_return": M.total_return(ew_daily_returns),
         "annualized_return": M.annualized_return(daily_returns),
+        "baseline_ew_annualized_return": M.annualized_return(ew_daily_returns),
         "annualized_volatility": M.annualized_volatility(daily_returns),
+        "baseline_ew_annualized_volatility": M.annualized_volatility(ew_daily_returns),
         "max_drawdown": M.max_drawdown(daily_returns),
+        "baseline_ew_max_drawdown": M.max_drawdown(ew_daily_returns),
         "average_turnover": M.average_turnover(wc_df),
         "transaction_cost_drag": M.transaction_cost_drag(wc_df, cost_bps),
         "constraint_violations": all_violations,
@@ -270,15 +279,46 @@ def evaluate(
 
     if verbose:
         print("\n" + "=" * 60)
-        print("EVALUATION RESULTS")
+        print("EVALUATION RESULTS (vs Equal-Weight Baseline)")
         print("=" * 60)
-        for k, v in results.items():
-            if k == "constraint_violations":
-                continue
-            if isinstance(v, float):
-                print(f"  {k:30s}: {v:>12.4f}")
+        
+        display_keys = [
+            ("annualized_sharpe", "baseline_ew_sharpe"),
+            ("information_ratio_vs_ew", None),
+            ("total_return", "baseline_ew_total_return"),
+            ("annualized_return", "baseline_ew_annualized_return"),
+            ("annualized_volatility", "baseline_ew_annualized_volatility"),
+            ("max_drawdown", "baseline_ew_max_drawdown"),
+            ("average_turnover", None),
+            ("transaction_cost_drag", None),
+            ("n_constraint_violations", None),
+            ("fit_time_seconds", None),
+            ("eval_time_seconds", None),
+            ("total_time_seconds", None),
+            ("n_rebalance_dates", None),
+        ]
+
+        print(f"{'Metric':<30} | {'Strategy':>12} | {'EW Baseline':>12}")
+        print("-" * 60)
+        for strat_k, base_k in display_keys:
+            strat_v = results[strat_k]
+            
+            if isinstance(strat_v, float):
+                strat_str = f"{strat_v:>12.4f}"
             else:
-                print(f"  {k:30s}: {v!s:>12s}")
+                strat_str = f"{strat_v!s:>12s}"
+                
+            if base_k:
+                base_v = results[base_k]
+                if isinstance(base_v, float):
+                    base_str = f"{base_v:>12.4f}"
+                else:
+                    base_str = f"{base_v!s:>12s}"
+            else:
+                base_str = f"{'-':>12s}"
+                
+            print(f"{strat_k:<30} | {strat_str} | {base_str}")
+
         if all_violations:
             print(f"\n  Constraint violations ({len(all_violations)}):")
             for viol in all_violations[:5]:

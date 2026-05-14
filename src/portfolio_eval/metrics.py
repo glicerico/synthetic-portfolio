@@ -40,6 +40,17 @@ def sharpe_ratio(daily_returns: pd.Series, risk_free_rate: float = 0.0) -> float
     return float((ann_ret - risk_free_rate) / vol)
 
 
+def information_ratio(active_returns: pd.Series) -> float:
+    """Annualized Information Ratio based on active returns vs baseline."""
+    vol = annualized_volatility(active_returns)
+    if vol < 1e-10:
+        return 0.0
+    # Mean of active returns * 252 is typically used for IR, but let's use annualized_return to be consistent
+    # Note: If active return is very negative, this formulation is fine.
+    ann_ret = annualized_return(active_returns)
+    return float(ann_ret / vol)
+
+
 def total_return(daily_returns: pd.Series) -> float:
     """Cumulative total return."""
     return float((1 + daily_returns).prod() - 1)

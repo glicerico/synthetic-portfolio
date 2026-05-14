@@ -64,13 +64,14 @@ As a human evaluator scoring a given system's performance, follow these steps:
    ```
 5. **Safety Check:** The evaluator will automatically check if the `public` package is clean of any hidden data leaks before running.
 
-The evaluator computes and reports:
+The evaluator computes and reports the following side-by-side with a passive Equal-Weight Baseline for full transparency:
 
-- **Annualised Sharpe ratio**
-- **Total return**
-- **Annualised return**
-- **Annualised volatility**
-- **Maximum drawdown**
+- **Annualised Sharpe ratio** (vs EW)
+- **Information Ratio** (Active Return / Active Volatility vs EW)
+- **Total return** (vs EW)
+- **Annualised return** (vs EW)
+- **Annualised volatility** (vs EW)
+- **Maximum drawdown** (vs EW)
 - **Average turnover**
 - **Transaction cost drag**
 - **Constraint violations** (count and details)
