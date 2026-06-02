@@ -388,49 +388,8 @@ def save_split_dataset(dataset: Dict[str, Any], public_out: str, hidden_out: str
     with open(pub_dir / "metadata_public.json", "w") as f:
         json.dump(pub_meta, f, indent=2)
 
-    instructions = (
-        "# Portfolio-Eval Challenge\n\n"
-        "You are given daily returns and features for 20 synthetic assets.\n\n"
-        "Design a long-only, fully invested, monthly rebalanced portfolio strategy. Use only the training and validation periods for strategy design. You will not receive the held-out test data. Submit a reproducible strategy artifact that an independent evaluator can run once on the hidden test period.\n\n"
-        "Constraints:\n\n"
-        "- Long-only.\n"
-        "- Fully invested.\n"
-        "- Maximum 20% per asset.\n"
-        "- Monthly rebalance.\n"
-        "- Fixed train/validation/test split.\n"
-        "- No lookahead.\n"
-        "- Include transaction costs.\n"
-        "- CPU only.\n"
-        "- Compare against equal-weight and any provided public baselines using train/validation data only.\n\n"
-        "Deliver:\n\n"
-        "1. A runnable strategy file using the required interface.\n"
-        "2. A short report explaining the design process.\n"
-        "3. Validation metrics used for strategy selection.\n"
-        "4. Baseline comparisons on train/validation.\n"
-        "5. A statement of what should and should not be trusted.\n"
-        "6. Any known failure modes, skipped ideas, or uncertainty.\n\n"
-        "## Required Submission Format\n\n"
-        "You must submit a Python module containing exactly these two functions:\n\n"
-        "```python\n"
-        "def fit(train_returns, train_features, validation_returns, validation_features, metadata):\n"
-        "    \"\"\"\n"
-        "    Fit strategy state using only train/validation data.\n"
-        "    Return a serializable state object.\n"
-        "    \"\"\"\n"
-        "    # ... your logic ...\n"
-        "    return state\n\n"
-        "def generate_weights(date, history_returns, history_features, state, metadata):\n"
-        "    \"\"\"\n"
-        "    Called on each monthly rebalance date.\n"
-        "    Inputs contain only data available up to the decision date.\n"
-        "    Return asset weights as a pd.Series or dict mapping asset_ids to floats.\n"
-        "    \"\"\"\n"
-        "    # ... your logic ...\n"
-        "    return weights\n"
-        "```\n"
-    )
-    with open(pub_dir / "instructions.md", "w") as f:
-        f.write(instructions)
+    import shutil
+    shutil.copy("AGENT_INSTRUCTIONS.md", pub_dir / "instructions.md")
 
     # Hidden metadata
     hid = dict(hidden_meta)

@@ -25,3 +25,7 @@ data/
 # Coverage
 .coverage
 htmlcov/
+
+# Results
+results_*/
+

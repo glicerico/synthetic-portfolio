@@ -17,6 +17,11 @@ def main():
     gen.add_argument("--public-out", required=True, help="Output directory for public benchmark splits")
     gen.add_argument("--hidden-out", required=True, help="Output directory for hidden benchmark splits")
 
+    # generate_all
+    gen_all = sub.add_parser("generate_all", help="Generate all dataset variants (easy, medium, hard, etc.), zip them, and optionally upload to catbox.moe for sharing")
+    gen_all.add_argument("--out-dir", default="data", help="Output root directory for generated datasets and zip archives (default: data)")
+    gen_all.add_argument("--share", action="store_true", help="Upload zipped public datasets to catbox.moe and print shareable URLs")
+
     # evaluator
     ev = sub.add_parser("evaluator", help="Evaluate a strategy on benchmark data")
     ev.add_argument("--public-data", required=True, help="Path to public benchmark data directory")
@@ -29,6 +34,9 @@ def main():
     if args.command == "generate_dataset":
         from portfolio_eval.generate_dataset import main as gen_main
         gen_main(args.config, args.public_out, args.hidden_out)
+    elif args.command == "generate_all":
+        from portfolio_eval.generate_all import main as gen_all_main
+        gen_all_main(args.out_dir, args.share)
     elif args.command == "evaluator":
         from portfolio_eval.evaluator import main as eval_main
         eval_main(args.public_data, args.hidden_data, args.strategy, args.out)

@@ -16,6 +16,12 @@ To ensure fair evaluation and prevent data leakage, the benchmark uses a strict 
    - **Public Package:** Contains `train` data, `validation` data, `metadata_public.json`, and `instructions.md`.
    - **Hidden Package:** Contains `test` data, `metadata_hidden.json`, `true_regimes.npy`, and `dgp_config.json`.
 
+   **Batch Generation & Sharing Option:**
+   Alternatively, you can generate all dataset variants (easy, medium, hard, etc.), compress their public folders into `.zip` archives, and automatically upload them online to get shareable URLs for your agents:
+   ```bash
+   python -m portfolio_eval generate_all --share
+   ```
+
 2. **Agent Evaluation:** The agent receives *only* the Public Package to develop their strategy. **Provide the agent with `instructions.md` inside that folder.**
 
 3. **Independent Scoring:** An independent evaluator uses the `evaluator` command with both the public package and the hidden package to score the submitted strategy.
