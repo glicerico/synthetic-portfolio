@@ -1,8 +1,16 @@
 # Hard: Validation favours momentum, test favours mean-reversion.
 # A strategy that overfits to momentum in validation will underperform
 # in the test period.
+#
+# Quality gate: mean_reversion must dominate test, noisy must stay low.
+# This ensures a regime-aware agent CAN beat naive momentum, but
+# an agent that blindly follows validation signals cannot.
+quality_gate:
+  test_regime_min:   {2: 0.35}          # mean_reversion >= 35% of test days
+  test_regime_max:   {3: 0.40}          # noisy <= 40% of test days (seed=77 fails this!)
+  oracle_min_information_ratio: 0.6     # regime-oracle should clearly beat EW
 
-seed: 77
+seed: 78
 n_years: 5
 
 # Start in momentum → transition heavily to mean-reversion later

@@ -1,6 +1,12 @@
 # Noise Trap: No robust improvement over equal-weight is possible.
 # All signals are weak / noise-dominated.  Any strategy that tries to
 # exploit patterns will likely underperform due to transaction costs.
+#
+# Quality gate (inverted): oracle should NOT significantly beat EW.
+# This validates that the dataset truly has no detectable alpha.
+quality_gate:
+  test_regime_max:   {0: 0.25, 2: 0.25}  # momentum and mean_rev must stay weak
+  oracle_max_information_ratio: 0.3       # even oracle should barely beat EW
 
 seed: 999
 n_years: 5

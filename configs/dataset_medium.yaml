@@ -1,8 +1,14 @@
-# Medium: Mild regime shift between validation and test.
-# Validation period is predominantly momentum, test shifts toward
-# low-volatility and mean-reversion.
+# Medium: Some regime shift between validation and test.
+# Moderate difficulty — simple momentum degrades, but careful
+# validation selection can still find something that generalizes.
+#
+# Quality gate: balanced regime mix in test, no regime dominates unfairly.
+quality_gate:
+  test_regime_min:   {2: 0.25}          # mean_reversion >= 25% of test days
+  test_regime_max:   {3: 0.35}          # noisy <= 35% of test days
+  oracle_min_information_ratio: 0.4
 
-seed: 42
+seed: 43
 n_years: 5
 
 regime_start: 0  # start in momentum

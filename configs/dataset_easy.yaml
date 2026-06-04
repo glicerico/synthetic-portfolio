@@ -1,8 +1,17 @@
 # Easy: Validation and test regimes are similar.
 # The regime transition matrix keeps regimes sticky, and the starting
 # regime is the same.  Momentum signals dominate throughout.
+#
+# Quality gate: test must stay in momentum-friendly territory.
+# A simple momentum strategy should be detectable from validation and work in test.
+quality_gate:
+  # Structural: regime composition of the test period
+  test_regime_min:   {0: 0.30}          # momentum >= 30% of test days
+  test_regime_max:   {3: 0.20}          # noisy <= 20% of test days
+  # Functional: oracle (regime-aware) strategy must clearly beat EW
+  oracle_min_information_ratio: 0.5     # IR of oracle vs EW in test
 
-seed: 100
+seed: 103
 n_years: 5
 
 regime_start: 0  # start in momentum

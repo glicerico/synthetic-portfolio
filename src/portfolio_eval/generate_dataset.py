@@ -431,8 +431,215 @@ def save_split_dataset(dataset: Dict[str, Any], public_out: str, hidden_out: str
     print(f"  Test:       {dates[val_end].date()} – {dates[-1].date()}  ({n - val_end} days)")
 
 
-def main(config_path: str, public_out: str, hidden_out: str) -> None:
-    ds = generate_dataset(config_path)
+
+
+# ---------------------------------------------------------------------------
+# Quality gate
+# ---------------------------------------------------------------------------
+
+def validate_dataset(dataset: Dict[str, Any], cfg: Dict[str, Any]) -> tuple[bool, list[str]]:
+    """
+    Validate the generated dataset against quality_gate criteria in the config.
+
+    Returns (passed: bool, messages: list[str]).
+
+    Quality gate keys supported (all optional):
+      test_regime_min:  {regime_idx: min_fraction}  -- test must have >= this fraction
+      test_regime_max:  {regime_idx: max_fraction}  -- test must have <= this fraction
+      oracle_min_information_ratio: float  -- regime-oracle IR vs EW must exceed this
+      oracle_max_information_ratio: float  -- regime-oracle IR vs EW must not exceed this
+    """
+    gate = cfg.get("quality_gate")
+    if not gate:
+        return True, ["No quality_gate defined — skipping validation."]
+
+    returns = dataset["returns"]
+    regimes = dataset["regimes"]
+    n = len(returns)
+    val_end = int(n * 0.8)
+    test_regimes = regimes[val_end:]
+    test_returns = returns.iloc[val_end:]
+    n_test = len(test_regimes)
+
+    messages: list[str] = []
+    passed = True
+
+    # --- Structural: regime composition of test period ---
+    regime_counts = {i: int(np.sum(test_regimes == i)) for i in range(4)}
+    regime_fracs  = {i: regime_counts[i] / n_test for i in range(4)}
+
+    for regime_idx_str, min_frac in gate.get("test_regime_min", {}).items():
+        regime_idx = int(regime_idx_str)
+        actual = regime_fracs[regime_idx]
+        if actual < min_frac:
+            messages.append(
+                f"FAIL test_regime_min: regime {regime_idx} ({REGIME_NAMES[regime_idx]}) "
+                f"= {actual:.2%} < required {min_frac:.2%}"
+            )
+            passed = False
+        else:
+            messages.append(
+                f"OK   test_regime_min: regime {regime_idx} ({REGIME_NAMES[regime_idx]}) "
+                f"= {actual:.2%} >= {min_frac:.2%}"
+            )
+
+    for regime_idx_str, max_frac in gate.get("test_regime_max", {}).items():
+        regime_idx = int(regime_idx_str)
+        actual = regime_fracs[regime_idx]
+        if actual > max_frac:
+            messages.append(
+                f"FAIL test_regime_max: regime {regime_idx} ({REGIME_NAMES[regime_idx]}) "
+                f"= {actual:.2%} > limit {max_frac:.2%}"
+            )
+            passed = False
+        else:
+            messages.append(
+                f"OK   test_regime_max: regime {regime_idx} ({REGIME_NAMES[regime_idx]}) "
+                f"= {actual:.2%} <= {max_frac:.2%}"
+            )
+
+    # --- Functional: oracle information ratio ---
+    min_ir = gate.get("oracle_min_information_ratio")
+    max_ir = gate.get("oracle_max_information_ratio")
+
+    if min_ir is not None or max_ir is not None:
+        # Oracle: perfect regime-aware weights each day
+        assets = list(returns.columns)
+        n_assets = len(assets)
+        max_w = 1.0 / n_assets  # upper bound per oracle signal
+
+        oracle_daily = []
+        ew_daily = []
+        for t, date in enumerate(test_returns.index):
+            regime = REGIME_NAMES[test_regimes[t]]
+            day_ret = test_returns.iloc[t].values
+            ew_ret  = day_ret.mean()
+            ew_daily.append(ew_ret)
+
+            # Build regime-optimal signal
+            if regime == "momentum":
+                # Favor high past momentum (use 21-day prior)
+                start_t = max(0, val_end + t - 21)
+                hist_slice = returns.iloc[start_t: val_end + t]
+                if len(hist_slice) >= 5:
+                    signal = hist_slice.values.sum(axis=0)
+                else:
+                    signal = np.ones(n_assets)
+            elif regime == "mean_reversion":
+                start_t = max(0, val_end + t - 5)
+                hist_slice = returns.iloc[start_t: val_end + t]
+                if len(hist_slice) >= 2:
+                    signal = -hist_slice.values.sum(axis=0)
+                else:
+                    signal = np.ones(n_assets)
+            elif regime == "low_vol":
+                start_t = max(0, val_end + t - 63)
+                hist_slice = returns.iloc[start_t: val_end + t]
+                if len(hist_slice) >= 10:
+                    signal = 1.0 / (hist_slice.values.std(axis=0) + 1e-8)
+                else:
+                    signal = np.ones(n_assets)
+            else:  # noisy
+                signal = np.ones(n_assets)
+
+            # Normalise to weights
+            signal = signal - signal.min() + 1e-8
+            w = signal / signal.sum()
+            w = np.clip(w, 0, 0.20)
+            w = w / w.sum()
+            oracle_daily.append(np.dot(w, day_ret))
+
+        oracle_s = np.array(oracle_daily)
+        ew_s     = np.array(ew_daily)
+        active   = oracle_s - ew_s
+        ir = active.mean() / (active.std() + 1e-10) * np.sqrt(252)
+
+        if min_ir is not None:
+            if ir < min_ir:
+                messages.append(
+                    f"FAIL oracle_min_information_ratio: IR = {ir:.3f} < required {min_ir}"
+                )
+                passed = False
+            else:
+                messages.append(f"OK   oracle_min_information_ratio: IR = {ir:.3f} >= {min_ir}")
+
+        if max_ir is not None:
+            if ir > max_ir:
+                messages.append(
+                    f"FAIL oracle_max_information_ratio: IR = {ir:.3f} > limit {max_ir}"
+                )
+                passed = False
+            else:
+                messages.append(f"OK   oracle_max_information_ratio: IR = {ir:.3f} <= {max_ir}")
+
+    return passed, messages
+
+
+def main(config_path: str, public_out: str, hidden_out: str,
+         max_retries: int = 20) -> None:
+    """
+    Generate a dataset and validate it against quality_gate criteria.
+    If validation fails, automatically increment the seed and retry up to
+    max_retries times.
+    """
+    with open(config_path) as f:
+        raw_cfg = yaml.safe_load(f) or {}
+
+    base_seed = raw_cfg.get("seed", 42)
+
+    for attempt in range(max_retries + 1):
+        seed = base_seed + attempt
+        if attempt > 0:
+            print(f"\n[Quality Gate] Retrying with seed={seed} (attempt {attempt}/{max_retries})...")
+            raw_cfg["seed"] = seed
+            # Write temp override (we re-read it in generate_dataset, so patch cfg instead)
+
+        ds = generate_dataset(config_path)
+        # Apply seed override for retries without re-writing the config file
+        if attempt > 0:
+            cfg_override = _default_config()
+            for k, v in raw_cfg.items():
+                if isinstance(v, dict) and isinstance(cfg_override.get(k), dict):
+                    cfg_override[k].update(v)
+                else:
+                    cfg_override[k] = v
+            cfg_override["seed"] = seed
+            rng = np.random.default_rng(seed)
+            n_bdays = int(cfg_override["n_years"] * 252)
+            dates = pd.bdate_range(pd.Timestamp("2018-01-02"), periods=n_bdays)
+            transition = np.array(cfg_override["regime_transition"], dtype=float)
+            regimes = _simulate_regimes(rng, n_bdays, transition, cfg_override["regime_start"])
+            returns, sector_map, _ = _generate_returns(rng, dates, regimes, cfg_override)
+            features = _generate_features(returns, rng, regimes, sector_map)
+            ds = {
+                "returns": returns, "features": features, "regimes": regimes,
+                "sector_map": sector_map, "metadata": ds["metadata"],
+                "hidden_metadata": {
+                    "regimes": regimes.tolist(),
+                    "regime_names": REGIME_NAMES,
+                    "dgp_config": cfg_override,
+                },
+                "dates": dates,
+            }
+
+        passed, messages = validate_dataset(ds, raw_cfg)
+
+        print(f"\n[Quality Gate] Validation results (seed={seed}):")
+        for msg in messages:
+            print(f"  {msg}")
+
+        if passed:
+            print(f"[Quality Gate] PASSED with seed={seed}")
+            if attempt > 0:
+                print(f"[Quality Gate] NOTE: Original seed={base_seed} failed. "
+                      f"Consider updating 'seed: {seed}' in {config_path}")
+            save_split_dataset(ds, public_out, hidden_out)
+            return
+        else:
+            print(f"[Quality Gate] FAILED — will retry with next seed.")
+
+    print(f"\n[Quality Gate] WARNING: All {max_retries} retries exhausted. "
+          f"Saving last attempt anyway. Review quality_gate thresholds in the config.")
     save_split_dataset(ds, public_out, hidden_out)
 
 
@@ -441,5 +648,8 @@ if __name__ == "__main__":
     parser.add_argument("--config", required=True)
     parser.add_argument("--public-out", required=True)
     parser.add_argument("--hidden-out", required=True)
+    parser.add_argument("--max-retries", type=int, default=20,
+                        help="Max seed increment retries if quality gate fails (default: 20)")
     args = parser.parse_args()
-    main(args.config, args.public_out, args.hidden_out)
+    main(args.config, args.public_out, args.hidden_out, args.max_retries)
+

@@ -2,8 +2,15 @@
 # but the required turnover destroys net returns.
 # A strategy that aggressively trades reversals will appear good
 # on gross returns but terrible after transaction costs.
+#
+# Quality gate: reversion regime must dominate, and the gross oracle
+# should beat EW but net-of-cost returns should be near EW.
+quality_gate:
+  test_regime_min:   {2: 0.40}          # mean_reversion >= 40% of test days
+  oracle_min_information_ratio: 0.5     # gross signal exists
+  # (net performance is validated separately via evaluator baseline check)
 
-seed: 555
+seed: 560
 n_years: 5
 
 regime_start: 2  # start in mean-reversion
